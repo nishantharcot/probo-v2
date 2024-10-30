@@ -9,10 +9,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUser = void 0;
+exports.onrampInr = exports.resetData = exports.createUser = void 0;
 const RedisManager_js_1 = require("../RedisManager.js");
 const createUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    // console.log('req check:- ', req)
     const { userId } = req.params;
     const response = yield RedisManager_js_1.RedisManager.getInstance().sendAndAwait({
         type: 'CREATE_USER',
@@ -24,3 +23,22 @@ const createUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     res.json(response.payload);
 });
 exports.createUser = createUser;
+const resetData = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const response = yield RedisManager_js_1.RedisManager.getInstance().sendAndAwait({
+        type: 'RESET_DATA',
+    });
+    res.json(response.payload);
+});
+exports.resetData = resetData;
+const onrampInr = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId, amount } = req.body;
+    const response = yield RedisManager_js_1.RedisManager.getInstance().sendAndAwait({
+        type: 'ONRAMP_INR',
+        data: {
+            userId,
+            amount
+        }
+    });
+    res.json(response.payload);
+});
+exports.onrampInr = onrampInr;

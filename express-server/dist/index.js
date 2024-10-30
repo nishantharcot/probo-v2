@@ -15,11 +15,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const redis_1 = require("redis");
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
+const symbolRoutes_1 = __importDefault(require("./routes/symbolRoutes"));
+const getRoutes_1 = __importDefault(require("./routes/getRoutes"));
 const app = (0, express_1.default)();
 const redisClient = (0, redis_1.createClient)();
 app.use(express_1.default.json());
 // Routes
 app.use('', userRoutes_1.default);
+app.use('', symbolRoutes_1.default);
+app.use('', getRoutes_1.default);
 // app.post('/connectionTest', async (req, res) => {
 //     redisClient.lPush("requests", "Hi. I'm pushing on the queue. Can you reveive this?")
 //     res.status(200).send("connection established!")

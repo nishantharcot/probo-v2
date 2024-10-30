@@ -7,4 +7,6 @@ const express_1 = __importDefault(require("express"));
 const userController_1 = require("../controllers/userController");
 const userRouter = express_1.default.Router();
 userRouter.post('/user/create/:userId', userController_1.createUser);
+userRouter.post('/reset', userController_1.resetData);
+userRouter.post('/onramp/inr', userController_1.onrampInr);
 exports.default = userRouter;

@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const getRoutesController_1 = require("../controllers/getRoutesController");
+const getRouter = (0, express_1.Router)();
+getRouter.get('/orderbook', getRoutesController_1.getOrderBook);
+getRouter.get('/balances/inr', getRoutesController_1.getInrBalances);
+getRouter.get('/balances/inr/:userId', getRoutesController_1.getUserBalance);
+getRouter.get('/balances/stock', getRoutesController_1.getStockBalances);
+exports.default = getRouter;
