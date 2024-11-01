@@ -3,6 +3,7 @@ import { createClient } from "redis"
 import userRouter from "./routes/userRoutes"
 import symbolRouter from "./routes/symbolRoutes"
 import getRouter from "./routes/getRoutes"
+import stockRouter from "./routes/stockRoutes"
 
 const app = express()
 const redisClient = createClient()
@@ -12,6 +13,7 @@ app.use(express.json())
 app.use('', userRouter)
 app.use('', symbolRouter)
 app.use('', getRouter)
+app.use('/order', stockRouter)
 
 
 // app.post('/connectionTest', async (req, res) => {

@@ -1,5 +1,7 @@
 export const CREATE_USER = 'CREATE_USER'
 
+export type STOCK_TYPE = 'yes' | 'no'
+
 export type API_TO_ENGINE_ORDER_TYPES = {
     type: "CREATE_USER",
     data: {
@@ -28,6 +30,24 @@ export type API_TO_ENGINE_ORDER_TYPES = {
     type: "GET_USER_BALANCE",
     data: {
         userId: string,
+    }
+} | {
+    type: "BUY",
+    data: {
+        userId: string,
+        stockSymbol: string,
+        quantity: number,
+        price: number,
+        stockType: STOCK_TYPE
+    }
+} | {
+    type: "SELL",
+    data: {
+        userId: string,
+        stockSymbol: string,
+        quantity: number,
+        price: number,
+        stockType: STOCK_TYPE
     }
 }
 

@@ -1,4 +1,6 @@
 
+export type STOCK_TYPE = 'yes' | 'no'
+
 export type MessageFromApi = {
     type: 'CREATE_USER',
     data: {
@@ -27,5 +29,23 @@ export type MessageFromApi = {
     type: 'GET_USER_BALANCE',
     data: {
         userId: string
+    }
+} | {
+    type: "BUY",
+    data: {
+        userId: string,
+        stockSymbol: string,
+        quantity: number,
+        price: number,
+        stockType: STOCK_TYPE
+    }
+} | {
+    type: "SELL",
+    data: {
+        userId: string,
+        stockSymbol: string,
+        quantity: number,
+        price: number,
+        stockType: STOCK_TYPE
     }
 }

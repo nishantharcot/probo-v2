@@ -47,4 +47,9 @@ export type MessageToApi = {
     payload: {
         message: string
     }
+} | {
+    type: "BUY",
+    payload: {
+        message: string
+    }
 }
