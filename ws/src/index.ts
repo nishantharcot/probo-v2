@@ -22,17 +22,31 @@ async function startServer () {
 
             console.log('processed Requests:- ', processedRequest)
 
+            wss.clients.forEach((client) => {
+                console.log('good morning!')
+                if (client.readyState === WebSocket.OPEN) {
+                    // console.log('checking message:- ', processedRequest.toLocaleString())
+                    console.log("msg check:- ", processedRequest!.toString())
+                    client.send(processedRequest!.element)
+                }
+            })
+
             // Send data to frontend
             wss.on('connection', (ws) => {
-                console.log('my clients:- ', wss.clients)
-                wss.clients.forEach((client) => {
-                    if (client.readyState === WebSocket.OPEN && processedRequest) {
-                        // console.log('checking message:- ', message.toLocaleString())
-                        client.send(processedRequest.toLocaleString())
-                    }
+                // console.log('my clients:- ', wss.clients)
+
+                ws.on('message', (message) => {
+                    wss.clients.forEach((client) => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            // console.log('checking message:- ', processedRequest.toLocaleString())
+                            console.log("msg check:- ", message.toString())
+                            client.send(message.toLocaleString())
+                        }
+                    })
                 })
+
             
-                ws.send('Hello from ws server')
+                // ws.send('Hello from ws server')
             })
         }
 
