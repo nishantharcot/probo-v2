@@ -52,4 +52,14 @@ export type MessageToApi = {
     payload: {
         message: string
     }
+}  | {
+    type: "SELL",
+    payload: {
+        message: string
+    }
+} | {
+    type: "MINT",
+    payload: {
+        message: string
+    }
 }

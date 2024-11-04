@@ -38,3 +38,17 @@ export const onrampInr = async (req:express.Request, res:express.Response) => {
 
   res.json(response.payload)
 }
+
+export const minTokens = async (req: express.Request, res: express.Response) => {
+  const {userId, stockSymbol, quantity, price} = req.body
+
+  const response = await RedisManager.getInstance().sendAndAwait({
+    type: 'MINT',
+    data: {
+      userId, stockSymbol, quantity, price
+    }
+  })
+
+  res.json(response.payload)
+
+}

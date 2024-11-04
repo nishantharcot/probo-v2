@@ -49,6 +49,14 @@ export type API_TO_ENGINE_ORDER_TYPES = {
         price: number,
         stockType: STOCK_TYPE
     }
+} | {
+    type: "MINT",
+    data: {
+        userId: string,
+        stockSymbol: string,
+        quantity: number,
+        price: number
+    }
 }
 
 export type ENGINE_TO_API_RESPONSE_TYPES = {

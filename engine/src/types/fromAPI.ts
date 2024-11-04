@@ -48,4 +48,12 @@ export type MessageFromApi = {
         price: number,
         stockType: STOCK_TYPE
     }
+} | {
+    type: "MINT",
+    data: {
+        userId: string,
+        stockSymbol: string,
+        quantity: number,
+        price: number
+    }
 }

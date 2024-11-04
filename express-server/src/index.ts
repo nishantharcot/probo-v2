@@ -29,8 +29,8 @@ async function startServer() {
             console.log('Express server is listening on port 3000')
         })
 
-    } catch {
-        console.log('error in application')
+    } catch(e) {
+        console.log('error in application:- ', e)
     }
 }
 

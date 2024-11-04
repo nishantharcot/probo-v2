@@ -17,6 +17,7 @@ const redis_1 = require("redis");
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const symbolRoutes_1 = __importDefault(require("./routes/symbolRoutes"));
 const getRoutes_1 = __importDefault(require("./routes/getRoutes"));
+const stockRoutes_1 = __importDefault(require("./routes/stockRoutes"));
 const app = (0, express_1.default)();
 const redisClient = (0, redis_1.createClient)();
 app.use(express_1.default.json());
@@ -24,6 +25,7 @@ app.use(express_1.default.json());
 app.use('', userRoutes_1.default);
 app.use('', symbolRoutes_1.default);
 app.use('', getRoutes_1.default);
+app.use('/order', stockRoutes_1.default);
 // app.post('/connectionTest', async (req, res) => {
 //     redisClient.lPush("requests", "Hi. I'm pushing on the queue. Can you reveive this?")
 //     res.status(200).send("connection established!")
@@ -36,8 +38,8 @@ function startServer() {
                 console.log('Express server is listening on port 3000');
             });
         }
-        catch (_a) {
-            console.log('error in application');
+        catch (e) {
+            console.log('error in application:- ', e);
         }
     });
 }
