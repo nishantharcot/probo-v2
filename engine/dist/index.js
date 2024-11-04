@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const redis_1 = require("redis");
 const data_1 = require("./data");
 const RedisManager_1 = require("./RedisManager");
+const utils_1 = require("./utils");
 const redisClient = (0, redis_1.createClient)();
 function processSubmission(_a) {
     return __awaiter(this, arguments, void 0, function* ({ request, clientID, }) {
+        var _b, _c;
         console.log("Hi express server, I received your request. I'm processing it currently!");
         console.log("request check:- ", request);
         switch (request.type) {
@@ -71,7 +73,7 @@ function processSubmission(_a) {
                     RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
                         type: "GET_ORDERBOOK",
                         payload: {
-                            message: JSON.stringify(data_1.ORDERBOOK),
+                            message: (0, utils_1.serializeOrderBook)(data_1.ORDERBOOK),
                         },
                     });
                 }
@@ -345,6 +347,8 @@ function processSubmission(_a) {
             case "SELL":
                 try {
                     let { userId, stockSymbol, quantity, price, stockType } = request.data;
+                    const origQuantity = quantity;
+                    console.log('started step 1');
                     // STEP 1:- CHECK IF USER HAS SUFFICIENT STOCK BALANCE
                     const stockExists = data_1.STOCK_BALANCES.get(userId).get(stockSymbol);
                     if (!stockExists) {
@@ -356,6 +360,8 @@ function processSubmission(_a) {
                         });
                         break;
                     }
+                    console.log('finished step 1');
+                    console.log('passed step 1');
                     const stockTypeExists = stockExists[stockType];
                     if (!stockTypeExists) {
                         RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
@@ -366,7 +372,9 @@ function processSubmission(_a) {
                         });
                         break;
                     }
+                    console.log('stockTypeExists passed');
                     const stockQuantity = stockTypeExists.quantity;
+                    console.log('stockQuantity passed:- ', stockQuantity);
                     if (stockQuantity < quantity) {
                         RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
                             type: "SELL",
@@ -376,9 +384,9 @@ function processSubmission(_a) {
                         });
                         break;
                     }
+                    console.log('Started step 2');
                     // STEP 2:- Iterate Buy Order Queue
-                    const indexesToBeDeleted = [];
-                    const origQuantity = quantity;
+                    const indexesToBeDeleted = new Map();
                     for (let i = 0; i < data_1.BUY_ORDER_QUEUE.length; i++) {
                         let { userId: buyerUserId, stockSymbol: buyerstockSymbol, quantity: buyerQuantity, price: buyerPrice, stockType: buyerStockType, } = data_1.BUY_ORDER_QUEUE[i];
                         if (buyerstockSymbol != stockSymbol || buyerStockType != stockType || buyerPrice < price) {
@@ -386,7 +394,7 @@ function processSubmission(_a) {
                         }
                         let toBeExecuted = 0;
                         if (buyerQuantity <= quantity) {
-                            indexesToBeDeleted.push(i);
+                            indexesToBeDeleted.set(i, 1);
                             toBeExecuted = buyerQuantity;
                         }
                         else {
@@ -395,10 +403,6 @@ function processSubmission(_a) {
                         // buyer details update
                         data_1.INR_BALANCES.get(buyerUserId).locked -= toBeExecuted * buyerPrice;
                         data_1.STOCK_BALANCES.get(buyerUserId).get(stockSymbol)[stockType].locked -= toBeExecuted;
-                        const priceKey = (buyerPrice / 100).toString();
-                        data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].total -= toBeExecuted;
-                        const prevQuantity = data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].orders.get(buyerUserId);
-                        data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].orders.set(buyerUserId, prevQuantity - toBeExecuted);
                         // BUYER details update
                         data_1.INR_BALANCES.get(userId).balance -= toBeExecuted * buyerPrice;
                         if (data_1.STOCK_BALANCES.has(userId)) {
@@ -421,23 +425,56 @@ function processSubmission(_a) {
                         quantity -= toBeExecuted;
                         buyerQuantity -= toBeExecuted;
                         if (buyerQuantity == 0) {
-                            indexesToBeDeleted.push(i);
+                            indexesToBeDeleted.set(i, 1);
                         }
                         if (quantity == 0) {
                             break;
                         }
                     }
+                    console.log('Passed step 2');
                     // Delete items
-                    let j = 0;
                     data_1.BUY_ORDER_QUEUE.filter((item, index) => {
-                        if (index != indexesToBeDeleted[j]) {
-                            return true;
-                        }
-                        else {
-                            j += 1;
+                        if (indexesToBeDeleted.has(index)) {
                             return false;
                         }
+                        else {
+                            return true;
+                        }
                     });
+                    console.log('Passed step 2');
+                    if (quantity > 0) {
+                        const priceKey = (price / 100).toString();
+                        if (data_1.ORDERBOOK.has(stockSymbol) && data_1.ORDERBOOK.get(stockSymbol)[stockType]) {
+                            if (data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey]) {
+                                data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].total += quantity;
+                                if (data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].orders.has(userId)) {
+                                    const current = data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].orders.get(userId);
+                                    data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].orders.set(userId, quantity + current);
+                                }
+                                else {
+                                    data_1.ORDERBOOK.get(stockSymbol)[stockType][priceKey].orders.set(userId, quantity);
+                                }
+                            }
+                            else {
+                                data_1.ORDERBOOK.get(stockSymbol)[stockType] = {
+                                    priceKey: {
+                                        total: quantity,
+                                        orders: new Map([[userId, quantity]])
+                                    }
+                                };
+                            }
+                        }
+                        else {
+                            data_1.ORDERBOOK.set(stockSymbol, {
+                                [stockType]: {
+                                    [priceKey]: {
+                                        total: quantity,
+                                        orders: new Map([[userId, quantity]])
+                                    }
+                                }
+                            });
+                        }
+                    }
                     if (quantity == 0) {
                         RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
                             type: "SELL",
@@ -446,17 +483,26 @@ function processSubmission(_a) {
                             },
                         });
                     }
+                    else if (quantity == origQuantity) {
+                        RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
+                            type: "SELL",
+                            payload: {
+                                message: "Sell order placed and pending",
+                            },
+                        });
+                    }
                     else {
                         RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
                             type: "SELL",
                             payload: {
-                                message: `Buy order matched partially, ${quantity} remaining`,
+                                message: `Sell order matched partially, ${quantity} remaining`,
                             },
                         });
                     }
-                    redisClient.lPush("processedRequests", data_1.ORDERBOOK);
+                    // redisClient.lPush("processedRequests", ORDERBOOK)
                 }
                 catch (e) {
+                    console.log("error check:- ", e);
                     RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
                         type: "GET_USER_BALANCE",
                         payload: {
@@ -464,13 +510,67 @@ function processSubmission(_a) {
                         },
                     });
                 }
+                break;
+            case "MINT":
+                try {
+                    const { userId, stockSymbol, quantity, price } = request.data;
+                    const reqdBalance = 2 * quantity * price;
+                    const userBalance = data_1.INR_BALANCES.get(userId).balance;
+                    if (userBalance < reqdBalance) {
+                        RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
+                            type: "MINT",
+                            payload: {
+                                message: 'Insufficient User Balance'
+                            }
+                        });
+                    }
+                    // STEP 1:- UPDATE USER BALANCE
+                    const userBalanceData = data_1.INR_BALANCES.get(userId);
+                    data_1.INR_BALANCES.set(userId, { balance: userBalance - reqdBalance, locked: userBalanceData.locked });
+                    // STEP 2:- UPDATE STOCK BALANCES
+                    const stockBalanceData = data_1.STOCK_BALANCES.get(userId);
+                    const stockAlreadyExists = stockBalanceData.get(stockSymbol);
+                    if (stockAlreadyExists) {
+                        const yesExists = (_b = stockBalanceData.get(stockSymbol)) === null || _b === void 0 ? void 0 : _b.yes;
+                        const noExists = (_c = stockBalanceData === null || stockBalanceData === void 0 ? void 0 : stockBalanceData.get(stockSymbol)) === null || _c === void 0 ? void 0 : _c.no;
+                        if (yesExists) {
+                            stockBalanceData.get(stockSymbol).yes.quantity += quantity;
+                        }
+                        else {
+                            stockBalanceData.get(stockSymbol)['yes'] = { locked: 0, quantity: quantity };
+                        }
+                        if (noExists) {
+                            stockBalanceData.get(stockSymbol).no.quantity += quantity;
+                        }
+                        else {
+                            stockBalanceData.get(stockSymbol)['no'] = { locked: 0, quantity: quantity };
+                        }
+                    }
+                    const remainingBalacnce = data_1.INR_BALANCES.get(userId).balance;
+                    RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
+                        type: "MINT",
+                        payload: {
+                            message: `Minted ${quantity} 'yes' and 'no' tokens for user ${userId}, remaining balance is ${remainingBalacnce}`
+                        }
+                    });
+                }
+                catch (e) {
+                    RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
+                        type: "REQUEST_FAILED",
+                        payload: {
+                            message: "Could not mint tokens",
+                        },
+                    });
+                }
+                break;
         }
         console.log("INR_BALANCES:- ", data_1.INR_BALANCES);
         console.log("STOCK_BALANCES:- ", data_1.STOCK_BALANCES);
+        console.log("ORDERBOOK:- ", data_1.ORDERBOOK);
         // Processing logic
         // Send to DB to process the request
         // Send it back to queue for websocket server to pick it up
-        // redisClient.lPush("processedRequests", "Processing of request is done, here is your result")
+        redisClient.lPush("processedRequests", (0, utils_1.serializeOrderBook)(data_1.ORDERBOOK));
     });
 }
 function main() {
@@ -484,7 +584,9 @@ function main() {
                 yield processSubmission(JSON.parse(response.element));
             }
         }
-        catch (_a) { }
+        catch (e) {
+            console.log('Engine server failed to start:- ', e);
+        }
     });
 }
 main();

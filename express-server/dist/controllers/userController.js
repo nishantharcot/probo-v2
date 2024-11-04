@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onrampInr = exports.resetData = exports.createUser = void 0;
+exports.mintTokens = exports.onrampInr = exports.resetData = exports.createUser = void 0;
 const RedisManager_js_1 = require("../RedisManager.js");
 const createUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.params;
@@ -42,3 +42,14 @@ const onrampInr = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     res.json(response.payload);
 });
 exports.onrampInr = onrampInr;
+const mintTokens = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId, stockSymbol, quantity, price } = req.body;
+    const response = yield RedisManager_js_1.RedisManager.getInstance().sendAndAwait({
+        type: 'MINT',
+        data: {
+            userId, stockSymbol, quantity, price
+        }
+    });
+    res.json(response.payload);
+});
+exports.mintTokens = mintTokens;

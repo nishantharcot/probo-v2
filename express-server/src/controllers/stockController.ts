@@ -15,6 +15,8 @@ export const buyStock = async (req: express.Request, res: express.Response) => {
             userId, stockSymbol, quantity, price, stockType
         }
     })
+
+    res.json(response.payload)
 }
 
 export const sellStock = async (req: express.Request, res: express.Response) => {
@@ -30,4 +32,6 @@ export const sellStock = async (req: express.Request, res: express.Response) => 
             userId, stockSymbol, quantity, price, stockType
         }
     })
+
+    res.json(response.payload)
 }

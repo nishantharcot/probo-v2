@@ -19,6 +19,7 @@ const buyStock = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             userId, stockSymbol, quantity, price, stockType
         }
     });
+    res.json(response.payload);
 });
 exports.buyStock = buyStock;
 const sellStock = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -29,5 +30,6 @@ const sellStock = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             userId, stockSymbol, quantity, price, stockType
         }
     });
+    res.json(response.payload);
 });
 exports.sellStock = sellStock;

@@ -9,4 +9,5 @@ const userRouter = express_1.default.Router();
 userRouter.post('/user/create/:userId', userController_1.createUser);
 userRouter.post('/reset', userController_1.resetData);
 userRouter.post('/onramp/inr', userController_1.onrampInr);
+userRouter.post('/trade/mint', userController_1.mintTokens);
 exports.default = userRouter;

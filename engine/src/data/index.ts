@@ -26,15 +26,14 @@ type OrderType = {
     no?: OrderPrice
 }
 
-type OrderBook = Map<string, OrderType>
+export type OrderBook = Map<string, OrderType>
 
 type OrderRequest = {
     userId: string
     stockSymbol: string
     quantity: number
     price: number
-    stockType: STOCK_TYPE
-      
+    stockType: STOCK_TYPE    
 }
 
 

@@ -9,6 +9,7 @@ import {
 } from "./data";
 import { MessageFromApi } from "./types/fromAPI";
 import { RedisManager } from "./RedisManager";
+import { serializeOrderBook } from "./utils";
 
 const redisClient = createClient();
 
@@ -77,7 +78,7 @@ async function processSubmission({
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_ORDERBOOK",
           payload: {
-            message: JSON.stringify(ORDERBOOK),
+            message: serializeOrderBook(ORDERBOOK),
           },
         });
       } catch (e) {
@@ -377,6 +378,10 @@ async function processSubmission({
         let { userId, stockSymbol, quantity, price, stockType } =
           request.data;
 
+        const origQuantity = quantity;
+
+
+        console.log('started step 1')
         // STEP 1:- CHECK IF USER HAS SUFFICIENT STOCK BALANCE
         const stockExists = STOCK_BALANCES.get(userId)!.get(stockSymbol)
         if (!stockExists) {
@@ -388,6 +393,8 @@ async function processSubmission({
           });
           break;
         }
+        console.log('finished step 1')
+        console.log('passed step 1')
 
         const stockTypeExists = stockExists[stockType]
         if (!stockTypeExists) {
@@ -400,7 +407,12 @@ async function processSubmission({
           break;
         }
 
+        console.log('stockTypeExists passed')
+
         const stockQuantity = stockTypeExists.quantity
+
+
+        console.log('stockQuantity passed:- ', stockQuantity)
 
         if (stockQuantity < quantity) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -412,9 +424,9 @@ async function processSubmission({
           break;
         }
 
+        console.log('Started step 2')
         // STEP 2:- Iterate Buy Order Queue
-        const indexesToBeDeleted: number[] = []
-        const origQuantity = quantity
+        const indexesToBeDeleted = new Map()
         for (let i = 0; i < BUY_ORDER_QUEUE.length; i++) {
           let {
             userId: buyerUserId,
@@ -431,7 +443,7 @@ async function processSubmission({
           let toBeExecuted = 0;
       
           if (buyerQuantity <= quantity) {
-            indexesToBeDeleted.push(i);
+            indexesToBeDeleted.set(i, 1);
             toBeExecuted = buyerQuantity;
           } else {
             toBeExecuted = quantity
@@ -440,12 +452,6 @@ async function processSubmission({
           // buyer details update
           INR_BALANCES.get(buyerUserId)!.locked -= toBeExecuted*buyerPrice
           STOCK_BALANCES.get(buyerUserId)!.get(stockSymbol)![stockType].locked! -= toBeExecuted;
-      
-          const priceKey = (buyerPrice/100).toString();
-          ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total -= toBeExecuted
-          const prevQuantity = ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(buyerUserId)!
-          ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(buyerUserId, prevQuantity-toBeExecuted)
-      
       
           // BUYER details update
           INR_BALANCES.get(userId)!.balance -= toBeExecuted*buyerPrice
@@ -470,7 +476,7 @@ async function processSubmission({
           buyerQuantity -= toBeExecuted;
       
           if (buyerQuantity == 0) {
-            indexesToBeDeleted.push(i)
+            indexesToBeDeleted.set(i, 1)
           }
       
           if (quantity == 0) {
@@ -478,17 +484,51 @@ async function processSubmission({
           }
         }
 
+        console.log('Passed step 2')
 
         // Delete items
-        let j = 0;
         BUY_ORDER_QUEUE.filter((item, index) => {
-          if (index != indexesToBeDeleted[j]) {
-            return true
-          } else {
-            j += 1;
+          if (indexesToBeDeleted.has(index)) {
             return false
+          } else {
+            return true
           }
         })
+
+        console.log('Passed step 2')
+
+        if (quantity > 0) {
+          const priceKey = (price/100).toString();
+
+          if (ORDERBOOK.has(stockSymbol) && ORDERBOOK.get(stockSymbol)![stockType]) {
+              if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey]) {
+                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total += quantity
+                if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.has(userId)) {
+                  const current = ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(userId)!;
+                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(userId, quantity+current)
+                } else {
+                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(userId, quantity)
+                }
+              } else {
+                ORDERBOOK.get(stockSymbol)![stockType] = {
+                  priceKey: {
+                    total: quantity,
+                    orders: new Map([[userId, quantity]])
+                  }
+                }
+              }
+          } else {
+            ORDERBOOK.set(stockSymbol, {
+              [stockType]: {
+                [priceKey]: {
+                  total: quantity,
+                  orders: new Map([[userId, quantity]])
+                }
+              }
+            })
+          }
+        }
+
 
         if (quantity == 0) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -497,17 +537,25 @@ async function processSubmission({
               message: "Sell order placed and trade executed",
             },
           });
+        } else if (quantity == origQuantity) {
+          RedisManager.getInstance().sendToApi(clientID, {
+            type: "SELL",
+            payload: {
+              message: "Sell order placed and pending",
+            },
+          });
         } else {
           RedisManager.getInstance().sendToApi(clientID, {
             type: "SELL",
             payload: {
-              message: `Buy order matched partially, ${quantity} remaining`,
+              message: `Sell order matched partially, ${quantity} remaining`,
             },
           });
         }
-        redisClient.lPush("processedRequests", ORDERBOOK)
+        // redisClient.lPush("processedRequests", ORDERBOOK)
 
       } catch (e) {
+        console.log("error check:- ", e)
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_USER_BALANCE",
           payload: {
@@ -580,13 +628,14 @@ async function processSubmission({
 
   console.log("INR_BALANCES:- ", INR_BALANCES);
   console.log("STOCK_BALANCES:- ", STOCK_BALANCES);
+  console.log("ORDERBOOK:- ", ORDERBOOK)
 
   // Processing logic
 
   // Send to DB to process the request
 
   // Send it back to queue for websocket server to pick it up
-  // redisClient.lPush("processedRequests", "Processing of request is done, here is your result")
+  redisClient.lPush("processedRequests", serializeOrderBook(ORDERBOOK))
 }
 
 async function main() {
