@@ -1,4 +1,5 @@
 import { OrderBook } from "./data";
+import { OrderRequest } from "./data";
 
 function entriesToObject(entries: [string, any][]): { [key: string]: any } {
   const obj: { [key: string]: any } = {};
@@ -48,4 +49,9 @@ export function serializeOrderBook(orderBook: OrderBook): string {
       },
     ])
   );
+}
+
+
+export function transferAssets(buyer: OrderRequest, seller: OrderRequest) {
+  
 }

@@ -13,6 +13,9 @@ import { serializeOrderBook } from "./utils";
 
 const redisClient = createClient();
 
+
+
+
 async function processSubmission({
   request,
   clientID,
@@ -363,7 +366,7 @@ async function processSubmission({
             },
           });
         }
-        redisClient.lPush("processedRequests", ORDERBOOK)
+        redisClient.lPush("ws_server", ORDERBOOK)
       } catch (e) {
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_USER_BALANCE",
@@ -552,7 +555,7 @@ async function processSubmission({
             },
           });
         }
-        // redisClient.lPush("processedRequests", ORDERBOOK)
+        // redisClient.lPush("ws_server", ORDERBOOK)
 
       } catch (e) {
         console.log("error check:- ", e)
@@ -635,7 +638,8 @@ async function processSubmission({
   // Send to DB to process the request
 
   // Send it back to queue for websocket server to pick it up
-  redisClient.lPush("processedRequests", serializeOrderBook(ORDERBOOK))
+  redisClient.lPush("ws_server", serializeOrderBook(ORDERBOOK))
+  redisClient.lPush("db_server", serializeOrderBook(ORDERBOOK))
 }
 
 async function main() {

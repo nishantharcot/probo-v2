@@ -333,7 +333,7 @@ function processSubmission(_a) {
                             },
                         });
                     }
-                    redisClient.lPush("processedRequests", data_1.ORDERBOOK);
+                    redisClient.lPush("ws_server", data_1.ORDERBOOK);
                 }
                 catch (e) {
                     RedisManager_1.RedisManager.getInstance().sendToApi(clientID, {
@@ -499,7 +499,7 @@ function processSubmission(_a) {
                             },
                         });
                     }
-                    // redisClient.lPush("processedRequests", ORDERBOOK)
+                    // redisClient.lPush("ws_server", ORDERBOOK)
                 }
                 catch (e) {
                     console.log("error check:- ", e);
@@ -570,7 +570,7 @@ function processSubmission(_a) {
         // Processing logic
         // Send to DB to process the request
         // Send it back to queue for websocket server to pick it up
-        redisClient.lPush("processedRequests", (0, utils_1.serializeOrderBook)(data_1.ORDERBOOK));
+        redisClient.lPush("ws_server", (0, utils_1.serializeOrderBook)(data_1.ORDERBOOK));
     });
 }
 function main() {

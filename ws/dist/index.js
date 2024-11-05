@@ -50,7 +50,7 @@ function startServer() {
             const wss = new ws_1.WebSocketServer({ server: httpServer });
             while (true) {
                 // Receive data from Engine Server
-                const processedRequest = yield redisClient.brPop("processedRequests", 0);
+                const processedRequest = yield redisClient.brPop("ws_server", 0);
                 console.log('processed Requests:- ', processedRequest);
                 wss.clients.forEach((client) => {
                     console.log('good morning!');

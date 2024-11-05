@@ -18,7 +18,7 @@ async function startServer () {
 
         while (true) {
             // Receive data from Engine Server
-            const processedRequest = await redisClient.brPop("processedRequests", 0)
+            const processedRequest = await redisClient.brPop("ws_server", 0)
 
             console.log('processed Requests:- ', processedRequest)
 

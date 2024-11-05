@@ -28,7 +28,7 @@ type OrderType = {
 
 export type OrderBook = Map<string, OrderType>
 
-type OrderRequest = {
+export type OrderRequest = {
     userId: string
     stockSymbol: string
     quantity: number
