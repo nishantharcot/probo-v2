@@ -1,7 +1,10 @@
 import mongoose from "mongoose";
 import { createClient } from "redis";
+import dotenv from 'dotenv';
+dotenv.config()
+
 mongoose.connect(
-  "mongodb+srv://NishanthProbo:Test1234@probo-db.ugr7ecq.mongodb.net/"
+  process.env.MONGO_URL || ""
 );
 
 async function main() {
