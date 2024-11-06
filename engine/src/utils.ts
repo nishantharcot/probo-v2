@@ -51,7 +51,6 @@ export function serializeOrderBook(orderBook: OrderBook): string {
   );
 }
 
-
-export function transferAssets(buyer: OrderRequest, seller: OrderRequest) {
-  
+export function sortSellOrderQueueByPrice(queue: OrderRequest[]): OrderRequest[] {
+  return queue.sort((a, b) => a.price - b.price);
 }

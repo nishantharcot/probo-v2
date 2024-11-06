@@ -41,5 +41,15 @@ export const INR_BALANCES: Map<string, UserBalance> = new Map()
 export const ORDERBOOK: OrderBook = new Map()
 export const STOCK_BALANCES : Map<string, Map<string, StockBalance>> = new Map()
 
+type ORDER_QUEUES = {
+    BUY_ORDER_QUEUE: OrderRequest[],
+    SELL_ORDER_QUEUE: OrderRequest[]
+}
+
+export const ORDER_QUEUES: ORDER_QUEUES = {
+    BUY_ORDER_QUEUE: [],
+    SELL_ORDER_QUEUE: []
+}
+
 export const BUY_ORDER_QUEUE: OrderRequest[] = []
 export const SELL_ORDER_QUEUE: OrderRequest[] = []

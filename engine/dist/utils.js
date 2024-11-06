@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.serializeOrderBook = serializeOrderBook;
+exports.transferAssets = transferAssets;
 function entriesToObject(entries) {
     const obj = {};
     entries.forEach(([key, value]) => {
@@ -41,4 +42,6 @@ function serializeOrderBook(orderBook) {
                 : undefined,
         },
     ]));
+}
+function transferAssets(buyer, seller) {
 }

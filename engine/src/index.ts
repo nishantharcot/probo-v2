@@ -1,20 +1,16 @@
 import { createClient } from "redis";
-import { REQUEST_TYPES } from "./types";
 import {
   ORDERBOOK,
   INR_BALANCES,
   STOCK_BALANCES,
-  BUY_ORDER_QUEUE,
-  SELL_ORDER_QUEUE,
 } from "./data";
 import { MessageFromApi } from "./types/fromAPI";
 import { RedisManager } from "./RedisManager";
 import { serializeOrderBook } from "./utils";
+import { sortSellOrderQueueByPrice } from "./utils";
+import { ORDER_QUEUES } from "./data";
 
 const redisClient = createClient();
-
-
-
 
 async function processSubmission({
   request,
@@ -230,8 +226,7 @@ async function processSubmission({
       break;
     case "BUY":
       try {
-        let { userId, stockSymbol, quantity, price, stockType } =
-          request.data;
+        let { userId, stockSymbol, quantity, price, stockType } = request.data;
 
         // STEP 1:- CHECK FOR SUFFICIENT BALANCE
         const stockCost = quantity * price;
@@ -248,12 +243,14 @@ async function processSubmission({
           break;
         }
 
+        console.log("step 1 success!!");
+
         // STEP 2:- CHECK FOR STOCK IN ORDERBOOK
         const exists = ORDERBOOK.get(stockSymbol)![stockType];
 
         if (!exists) {
           // UPDATE ORDERBOOK AND INR_BALANCES
-          BUY_ORDER_QUEUE.push({
+          ORDER_QUEUES.BUY_ORDER_QUEUE.push({
             userId: userId,
             stockSymbol: stockSymbol,
             quantity: quantity,
@@ -273,83 +270,112 @@ async function processSubmission({
           break;
         }
 
-        // STEP 3:- ITERATE SELL_ORDER_QUEUE AND FULFILL THE ORDERS
-        const indexesToBeDeleted: number[] = []
-        const origQuantity = quantity
-        for (let i = 0; i < SELL_ORDER_QUEUE.length; i++) {
+        console.log("step 2 success!!");
+
+        // STEP 3:- ITERATE ORDER_QUEUES.SELL_ORDER_QUEUE AND FULFILL THE ORDERS
+        const indexesToBeDeleted = new Map();
+        const origQuantity = quantity;
+        for (let i = 0; i < ORDER_QUEUES.SELL_ORDER_QUEUE.length; i++) {
           let {
             userId: sellerUserId,
             stockSymbol: sellerstockSymbol,
             quantity: sellerQuantity,
             price: sellerPrice,
             stockType: sellerStockType,
-          } = SELL_ORDER_QUEUE[i];
+          } = ORDER_QUEUES.SELL_ORDER_QUEUE[i];
 
-          if (sellerstockSymbol != stockSymbol || sellerStockType != stockType || sellerPrice > price) {
+          if (
+            sellerstockSymbol != stockSymbol ||
+            sellerStockType != stockType ||
+            sellerPrice > price
+          ) {
             continue;
           }
 
           let toBeExecuted = 0;
 
           if (sellerQuantity <= quantity) {
-            indexesToBeDeleted.push(i);
+            indexesToBeDeleted.set(i, 1);
             toBeExecuted = sellerQuantity;
           } else {
-            toBeExecuted = quantity
+            toBeExecuted = quantity;
           }
 
           // SELLER details update
-          INR_BALANCES.get(sellerUserId)!.locked -= toBeExecuted*sellerPrice
-          STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![stockType].locked! -= toBeExecuted;
+          INR_BALANCES.get(sellerUserId)!.locked -= toBeExecuted * sellerPrice;
+          INR_BALANCES.get(sellerUserId)!.balance += toBeExecuted * sellerPrice;
+          STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
+            stockType
+          ].locked! -= toBeExecuted;
 
-          const priceKey = (sellerPrice/100).toString();
-          ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total -= toBeExecuted
-          const prevQuantity = ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(sellerUserId)!
-          ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(sellerUserId, prevQuantity-toBeExecuted)
-
+          const priceKey = (sellerPrice / 100).toString();
+          ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total -=
+            toBeExecuted;
+          const prevQuantity =
+            ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(
+              sellerUserId
+            )!;
+          ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
+            sellerUserId,
+            prevQuantity - toBeExecuted
+          );
 
           // BUYER details update
-          INR_BALANCES.get(userId)!.balance -= toBeExecuted*sellerPrice
+          INR_BALANCES.get(userId)!.balance -= toBeExecuted * sellerPrice;
           if (STOCK_BALANCES.has(userId)) {
-            const userData = STOCK_BALANCES.get(userId)!
+            const userData = STOCK_BALANCES.get(userId)!;
             if (userData.has(stockSymbol)) {
-              userData.get(stockSymbol)![stockType].quantity += toBeExecuted
+              userData.get(stockSymbol)![stockType].quantity += toBeExecuted;
             } else {
-              userData.set(stockSymbol, {yes: {quantity: 0, locked: 0}, no: {quantity: 0, locked: 0}})
-              userData.get(stockSymbol)![stockType].quantity += toBeExecuted
+              userData.set(stockSymbol, {
+                yes: { quantity: 0, locked: 0 },
+                no: { quantity: 0, locked: 0 },
+              });
+              userData.get(stockSymbol)![stockType].quantity += toBeExecuted;
             }
-            STOCK_BALANCES.get(userId)!.get(stockSymbol)![stockType].quantity += toBeExecuted
+            STOCK_BALANCES.get(userId)!.get(stockSymbol)![stockType].quantity +=
+              toBeExecuted;
           } else {
-            STOCK_BALANCES.set(userId, new Map())
-            const userData = STOCK_BALANCES.get(userId)!
+            STOCK_BALANCES.set(userId, new Map());
+            const userData = STOCK_BALANCES.get(userId)!;
 
-            userData.set(stockSymbol, {yes: {quantity: 0, locked: 0}, no: {quantity: 0, locked: 0}})
-            userData.get(stockSymbol)![stockType].quantity += toBeExecuted
+            userData.set(stockSymbol, {
+              yes: { quantity: 0, locked: 0 },
+              no: { quantity: 0, locked: 0 },
+            });
+            userData.get(stockSymbol)![stockType].quantity += toBeExecuted;
           }
 
           quantity -= toBeExecuted;
           sellerQuantity -= toBeExecuted;
 
           if (sellerQuantity == 0) {
-            indexesToBeDeleted.push(i)
+            indexesToBeDeleted.set(i, 1);
+          } else {
+            ORDER_QUEUES.SELL_ORDER_QUEUE[i] = {
+              userId: sellerUserId,
+              stockSymbol: sellerstockSymbol,
+              quantity: sellerQuantity,
+              price: sellerPrice,
+              stockType: sellerStockType,
+            };
           }
 
           if (quantity == 0) {
-            break
+            break;
           }
         }
 
+        console.log("step 3 success!!");
         // Delete elements in queue
 
-        let j = 0;
-        SELL_ORDER_QUEUE.filter((item, index) => {
-          if (index != indexesToBeDeleted[j]) {
-            return true
+        ORDER_QUEUES.SELL_ORDER_QUEUE = ORDER_QUEUES.SELL_ORDER_QUEUE.filter((item, index) => {
+          if (indexesToBeDeleted.has(index)) {
+            return false;
           } else {
-            j += 1;
-            return false
+            return true;
           }
-        })
+        });
 
         if (quantity == 0) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -366,7 +392,6 @@ async function processSubmission({
             },
           });
         }
-        redisClient.lPush("ws_server", ORDERBOOK)
       } catch (e) {
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_USER_BALANCE",
@@ -375,18 +400,17 @@ async function processSubmission({
           },
         });
       }
+      
       break;
     case "SELL":
       try {
-        let { userId, stockSymbol, quantity, price, stockType } =
-          request.data;
+        let { userId, stockSymbol, quantity, price, stockType } = request.data;
 
         const origQuantity = quantity;
 
-
-        console.log('started step 1')
+        console.log("started step 1");
         // STEP 1:- CHECK IF USER HAS SUFFICIENT STOCK BALANCE
-        const stockExists = STOCK_BALANCES.get(userId)!.get(stockSymbol)
+        const stockExists = STOCK_BALANCES.get(userId)!.get(stockSymbol);
         if (!stockExists) {
           RedisManager.getInstance().sendToApi(clientID, {
             type: "SELL",
@@ -396,10 +420,10 @@ async function processSubmission({
           });
           break;
         }
-        console.log('finished step 1')
-        console.log('passed step 1')
+        console.log("finished step 1");
+        console.log("passed step 1");
 
-        const stockTypeExists = stockExists[stockType]
+        const stockTypeExists = stockExists[stockType];
         if (!stockTypeExists) {
           RedisManager.getInstance().sendToApi(clientID, {
             type: "SELL",
@@ -410,12 +434,11 @@ async function processSubmission({
           break;
         }
 
-        console.log('stockTypeExists passed')
+        console.log("stockTypeExists passed");
 
-        const stockQuantity = stockTypeExists.quantity
+        const stockQuantity = stockTypeExists.quantity;
 
-
-        console.log('stockQuantity passed:- ', stockQuantity)
+        console.log("stockQuantity passed:- ", stockQuantity);
 
         if (stockQuantity < quantity) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -427,111 +450,157 @@ async function processSubmission({
           break;
         }
 
-        console.log('Started step 2')
+        console.log("Started step 2");
         // STEP 2:- Iterate Buy Order Queue
-        const indexesToBeDeleted = new Map()
-        for (let i = 0; i < BUY_ORDER_QUEUE.length; i++) {
+        const indexesToBeDeleted = new Map();
+        for (let i = 0; i < ORDER_QUEUES.BUY_ORDER_QUEUE.length; i++) {
           let {
             userId: buyerUserId,
             stockSymbol: buyerstockSymbol,
             quantity: buyerQuantity,
             price: buyerPrice,
             stockType: buyerStockType,
-          } = BUY_ORDER_QUEUE[i];
-      
-          if (buyerstockSymbol != stockSymbol || buyerStockType != stockType || buyerPrice < price) {
+          } = ORDER_QUEUES.BUY_ORDER_QUEUE[i];
+
+          if (
+            buyerstockSymbol != stockSymbol ||
+            buyerStockType != stockType ||
+            buyerPrice < price
+          ) {
             continue;
           }
-      
+
           let toBeExecuted = 0;
-      
+
           if (buyerQuantity <= quantity) {
             indexesToBeDeleted.set(i, 1);
             toBeExecuted = buyerQuantity;
           } else {
-            toBeExecuted = quantity
+            toBeExecuted = quantity;
           }
-      
+
           // buyer details update
-          INR_BALANCES.get(buyerUserId)!.locked -= toBeExecuted*buyerPrice
-          STOCK_BALANCES.get(buyerUserId)!.get(stockSymbol)![stockType].locked! -= toBeExecuted;
-      
+          INR_BALANCES.get(buyerUserId)!.locked -= toBeExecuted * buyerPrice;
+          STOCK_BALANCES.get(buyerUserId)!.get(stockSymbol)![
+            stockType
+          ].locked! -= toBeExecuted;
+
           // BUYER details update
-          INR_BALANCES.get(userId)!.balance -= toBeExecuted*buyerPrice
+          INR_BALANCES.get(userId)!.balance -= toBeExecuted * buyerPrice;
           if (STOCK_BALANCES.has(userId)) {
-            const userData = STOCK_BALANCES.get(userId)!
+            const userData = STOCK_BALANCES.get(userId)!;
             if (userData.has(stockSymbol)) {
-              userData.get(stockSymbol)![stockType].quantity += toBeExecuted
+              userData.get(stockSymbol)![stockType].quantity += toBeExecuted;
             } else {
-              userData.set(stockSymbol, {yes: {quantity: 0, locked: 0}, no: {quantity: 0, locked: 0}})
-              userData.get(stockSymbol)![stockType].quantity += toBeExecuted
+              userData.set(stockSymbol, {
+                yes: { quantity: 0, locked: 0 },
+                no: { quantity: 0, locked: 0 },
+              });
+              userData.get(stockSymbol)![stockType].quantity += toBeExecuted;
             }
-            STOCK_BALANCES.get(userId)!.get(stockSymbol)![stockType].quantity += toBeExecuted
+            STOCK_BALANCES.get(userId)!.get(stockSymbol)![stockType].quantity +=
+              toBeExecuted;
           } else {
-            STOCK_BALANCES.set(userId, new Map())
-            const userData = STOCK_BALANCES.get(userId)!
-      
-            userData.set(stockSymbol, {yes: {quantity: 0, locked: 0}, no: {quantity: 0, locked: 0}})
-            userData.get(stockSymbol)![stockType].quantity += toBeExecuted
+            STOCK_BALANCES.set(userId, new Map());
+            const userData = STOCK_BALANCES.get(userId)!;
+
+            userData.set(stockSymbol, {
+              yes: { quantity: 0, locked: 0 },
+              no: { quantity: 0, locked: 0 },
+            });
+            userData.get(stockSymbol)![stockType].quantity += toBeExecuted;
           }
-      
+
           quantity -= toBeExecuted;
           buyerQuantity -= toBeExecuted;
-      
+
           if (buyerQuantity == 0) {
-            indexesToBeDeleted.set(i, 1)
+            indexesToBeDeleted.set(i, 1);
           }
-      
+
           if (quantity == 0) {
-            break
+            break;
           }
         }
 
-        console.log('Passed step 2')
+        console.log("Passed step 2");
 
         // Delete items
-        BUY_ORDER_QUEUE.filter((item, index) => {
+        ORDER_QUEUES.BUY_ORDER_QUEUE = ORDER_QUEUES.BUY_ORDER_QUEUE.filter((item, index) => {
           if (indexesToBeDeleted.has(index)) {
-            return false
+            return false;
           } else {
-            return true
+            return true;
           }
-        })
+        });
 
-        console.log('Passed step 2')
+        console.log("Passed step 2");
 
         if (quantity > 0) {
-          const priceKey = (price/100).toString();
+          const priceKey = (price / 100).toString();
 
-          if (ORDERBOOK.has(stockSymbol) && ORDERBOOK.get(stockSymbol)![stockType]) {
-              if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey]) {
-                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total += quantity
-                if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.has(userId)) {
-                  const current = ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(userId)!;
-                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(userId, quantity+current)
-                } else {
-                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(userId, quantity)
-                }
+          if (
+            ORDERBOOK.has(stockSymbol) &&
+            ORDERBOOK.get(stockSymbol)![stockType]
+          ) {
+            if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey]) {
+              ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total +=
+                quantity;
+              if (
+                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.has(
+                  userId
+                )
+              ) {
+                const current =
+                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(
+                    userId
+                  )!;
+                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
+                  userId,
+                  quantity + current
+                );
               } else {
-                ORDERBOOK.get(stockSymbol)![stockType] = {
-                  priceKey: {
-                    total: quantity,
-                    orders: new Map([[userId, quantity]])
-                  }
-                }
+                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
+                  userId,
+                  quantity
+                );
               }
+            } else {
+              ORDERBOOK.get(stockSymbol)![stockType] = {
+                priceKey: {
+                  total: quantity,
+                  orders: new Map([[userId, quantity]]),
+                },
+              };
+            }
           } else {
             ORDERBOOK.set(stockSymbol, {
               [stockType]: {
                 [priceKey]: {
                   total: quantity,
-                  orders: new Map([[userId, quantity]])
-                }
-              }
-            })
+                  orders: new Map([[userId, quantity]]),
+                },
+              },
+            });
           }
-        }
 
+          ORDER_QUEUES.SELL_ORDER_QUEUE.push({
+            userId,
+            stockSymbol,
+            quantity,
+            price,
+            stockType,
+          });
+
+          ORDER_QUEUES.SELL_ORDER_QUEUE = sortSellOrderQueueByPrice(ORDER_QUEUES.SELL_ORDER_QUEUE);
+
+          const userBalanceDetails = INR_BALANCES.get(userId)!
+
+          INR_BALANCES.set(userId, {
+            balance: userBalanceDetails.balance - (quantity*price),
+            locked: userBalanceDetails.locked + (quantity*price)
+          })
+        }
 
         if (quantity == 0) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -555,69 +624,74 @@ async function processSubmission({
             },
           });
         }
-        // redisClient.lPush("ws_server", ORDERBOOK)
-
       } catch (e) {
-        console.log("error check:- ", e)
+        console.log("error check:- ", e);
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_USER_BALANCE",
           payload: {
             message: "Unable to fetch data",
           },
         });
-      
       }
       break;
     case "MINT":
       try {
-        const {userId, stockSymbol, quantity, price} = request.data
-        const reqdBalance = 2*quantity*price;
+        const { userId, stockSymbol, quantity, price } = request.data;
+        const reqdBalance = 2 * quantity * price;
 
-        const userBalance = INR_BALANCES.get(userId)!.balance
+        const userBalance = INR_BALANCES.get(userId)!.balance;
 
         if (userBalance < reqdBalance) {
           RedisManager.getInstance().sendToApi(clientID, {
             type: "MINT",
             payload: {
-              message: 'Insufficient User Balance'
-            }
-          })
+              message: "Insufficient User Balance",
+            },
+          });
         }
 
         // STEP 1:- UPDATE USER BALANCE
-        const userBalanceData = INR_BALANCES.get(userId)
-        INR_BALANCES.set(userId, {balance: userBalance-reqdBalance, locked: userBalanceData!.locked})
+        const userBalanceData = INR_BALANCES.get(userId);
+        INR_BALANCES.set(userId, {
+          balance: userBalance - reqdBalance,
+          locked: userBalanceData!.locked,
+        });
 
         // STEP 2:- UPDATE STOCK BALANCES
-        const stockBalanceData = STOCK_BALANCES.get(userId)!
-        const stockAlreadyExists = stockBalanceData!.get(stockSymbol)
+        const stockBalanceData = STOCK_BALANCES.get(userId)!;
+        const stockAlreadyExists = stockBalanceData!.get(stockSymbol);
 
         if (stockAlreadyExists) {
-          const yesExists = stockBalanceData.get(stockSymbol)?.yes
-          const noExists = stockBalanceData?.get(stockSymbol)?.no
+          const yesExists = stockBalanceData.get(stockSymbol)?.yes;
+          const noExists = stockBalanceData?.get(stockSymbol)?.no;
 
           if (yesExists) {
-            stockBalanceData.get(stockSymbol)!.yes.quantity += quantity
+            stockBalanceData.get(stockSymbol)!.yes.quantity += quantity;
           } else {
-            stockBalanceData.get(stockSymbol)!['yes'] = {locked: 0, quantity: quantity}
+            stockBalanceData.get(stockSymbol)!["yes"] = {
+              locked: 0,
+              quantity: quantity,
+            };
           }
 
           if (noExists) {
-            stockBalanceData.get(stockSymbol)!.no.quantity += quantity
+            stockBalanceData.get(stockSymbol)!.no.quantity += quantity;
           } else {
-            stockBalanceData.get(stockSymbol)!['no'] = {locked: 0, quantity: quantity}
+            stockBalanceData.get(stockSymbol)!["no"] = {
+              locked: 0,
+              quantity: quantity,
+            };
           }
         }
 
-        const remainingBalacnce = INR_BALANCES.get(userId)!.balance
+        const remainingBalacnce = INR_BALANCES.get(userId)!.balance;
 
         RedisManager.getInstance().sendToApi(clientID, {
           type: "MINT",
           payload: {
-            message: `Minted ${quantity} 'yes' and 'no' tokens for user ${userId}, remaining balance is ${remainingBalacnce}`
-          }
-        })
-
+            message: `Minted ${quantity} 'yes' and 'no' tokens for user ${userId}, remaining balance is ${remainingBalacnce}`,
+          },
+        });
       } catch (e) {
         RedisManager.getInstance().sendToApi(clientID, {
           type: "REQUEST_FAILED",
@@ -629,17 +703,20 @@ async function processSubmission({
       break;
   }
 
+  console.log("ORDER_QUEUES.SELL_ORDER_QUEUE:- ", ORDER_QUEUES.SELL_ORDER_QUEUE);
+  console.log("ORDER_QUEUES.BUY_ORDER_QUEUE:- ", ORDER_QUEUES.BUY_ORDER_QUEUE);
+
   console.log("INR_BALANCES:- ", INR_BALANCES);
   console.log("STOCK_BALANCES:- ", STOCK_BALANCES);
-  console.log("ORDERBOOK:- ", ORDERBOOK)
+  console.log("ORDERBOOK:- ", ORDERBOOK);
 
   // Processing logic
 
   // Send to DB to process the request
 
   // Send it back to queue for websocket server to pick it up
-  redisClient.lPush("ws_server", serializeOrderBook(ORDERBOOK))
-  redisClient.lPush("db_server", serializeOrderBook(ORDERBOOK))
+  redisClient.lPush("ws_server", serializeOrderBook(ORDERBOOK));
+  redisClient.lPush("db_server", serializeOrderBook(ORDERBOOK));
 }
 
 async function main() {
@@ -655,8 +732,8 @@ async function main() {
 
       await processSubmission(JSON.parse(response.element));
     }
-  } catch(e) {
-    console.log('Engine server failed to start:- ', e)
+  } catch (e) {
+    console.log("Engine server failed to start:- ", e);
   }
 }
 
