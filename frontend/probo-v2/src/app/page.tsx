@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { deserializeOrderBook } from "./utils";
 import { OrderBook } from "./utils";
+import { TableDemo } from "./components/EventDetails";
 
 export default function Home() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [message, setMessage] = useState<OrderBook | null>(null);
+  const [yesData, setYesData] = useState(null);
+  const [noData, setNoData] = useState(null);
 
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:8080");
@@ -18,6 +21,11 @@ export default function Home() {
 
     socket.onmessage = (message) => {
       console.log("Message Received:- ", deserializeOrderBook(message.data));
+
+      const res = deserializeOrderBook(message.data);
+
+      console.log("res:- ", res.get("BTC")!.no!["10"].total);
+
       setMessage(deserializeOrderBook(message.data));
     };
 
@@ -28,7 +36,7 @@ export default function Home() {
 
   useEffect(() => {
     if (message !== null) {
-      console.log(message.get("BTC"));
+      console.log(message);
     }
   }, [message]);
 
@@ -36,5 +44,9 @@ export default function Home() {
     return <div>Loading...</div>;
   }
 
-  return <div>hello</div>;
+  return (
+    <div>
+      <TableDemo />
+    </div>
+  );
 }
