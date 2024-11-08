@@ -1,5 +1,6 @@
 import { createClient, RedisClientType } from "redis";
 import { MessageToApi } from "./types/toApi";
+import { OrderBookForEvent } from "./types/toWs";
 
 
 export class RedisManager {
@@ -21,6 +22,10 @@ export class RedisManager {
 
     public sendToApi( clientID: string, message: MessageToApi ) {
         this.client.publish(clientID, JSON.stringify(message))
+    }
+
+    public publishMessage(event: string, message: OrderBookForEvent) {
+        this.client.publish(event, JSON.stringify(message))
     }
 
 

@@ -1,5 +1,7 @@
 import { createClient, RedisClientType } from "redis"
 import { UserManager } from "./UserManager"
+import { WebSocket } from "ws"
+
 
 export class SubscriptionManager {
   private static instance: SubscriptionManager
@@ -21,6 +23,8 @@ export class SubscriptionManager {
   }
 
   public subscribe(userId: string, subscription: string) {
+    console.log('userId:- ', userId, "subscription:- ", subscription)
+
     if (this.subscriptions.get(userId)?.includes(subscription)) {
       return;
     }
@@ -33,9 +37,10 @@ export class SubscriptionManager {
     }
   }
 
-  private redisCallbackhandler = (message: string, channel: string) => {
-    const parsedMessage = JSON.parse(message)
-    this.reverseSubscriptions.get(channel)?.forEach(s => UserManager.getInstance().getUser(s)?.emit(parsedMessage))
+  private redisCallbackhandler = (message: any, channel: string) => {
+    console.log('message check:- ', message)
+    // const parsedMessage = JSON.parse(message)
+    this.reverseSubscriptions.get(channel)?.forEach(s => UserManager.getInstance().getUser(s)?.emit(message))
   }
 
   public unsubscribe(userId: string, subscription: string) {

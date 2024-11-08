@@ -1,83 +1,9 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const ws_1 = __importStar(require("ws"));
-const redis_1 = require("redis");
-const app = (0, express_1.default)();
-const redisClient = (0, redis_1.createClient)();
-function startServer() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            yield redisClient.connect();
-            const httpServer = app.listen(8080, () => {
-                console.log('WS Server running on port 8080');
-            });
-            const wss = new ws_1.WebSocketServer({ server: httpServer });
-            while (true) {
-                // Receive data from Engine Server
-                const processedRequest = yield redisClient.brPop("ws_server", 0);
-                console.log('processed Requests:- ', processedRequest);
-                wss.clients.forEach((client) => {
-                    console.log('good morning!');
-                    if (client.readyState === ws_1.default.OPEN) {
-                        // console.log('checking message:- ', processedRequest.toLocaleString())
-                        console.log("msg check:- ", processedRequest.toString());
-                        client.send(processedRequest.element);
-                    }
-                });
-                // Send data to frontend
-                wss.on('connection', (ws) => {
-                    // console.log('my clients:- ', wss.clients)
-                    ws.on('message', (message) => {
-                        wss.clients.forEach((client) => {
-                            if (client.readyState === ws_1.default.OPEN) {
-                                // console.log('checking message:- ', processedRequest.toLocaleString())
-                                console.log("msg check:- ", message.toString());
-                                client.send(message.toLocaleString());
-                            }
-                        });
-                    });
-                    // ws.send('Hello from ws server')
-                });
-            }
-        }
-        catch (_a) {
-        }
-    });
-}
-startServer();
+const ws_1 = require("ws");
+const UserManager_1 = require("./UserManager");
+const wss = new ws_1.WebSocketServer({ port: 8080 });
+wss.on("connection", (ws) => {
+    console.log("connection opened");
+    UserManager_1.UserManager.getInstance().addUser(ws);
+});

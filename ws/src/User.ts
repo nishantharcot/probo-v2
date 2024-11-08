@@ -27,16 +27,20 @@ export class User {
   }
 
   private addListeners() {
-    this.ws.on('message', (message: string) => {
-      const parseedMessage: IncomingMessage = JSON.parse(message)
+    this.ws.on('message', (message) => {
+      console.log('message check:- ', message.toString())
+      const parsedMessage: IncomingMessage = JSON.parse(message.toString())
 
-      if (parseedMessage.method === "SUBSCRIBE") {
-        parseedMessage.params.forEach(s => SubscriptionManager.getInstance().subscribe(this.id, s))
+      console.log('parsedMessage check:- ', parsedMessage)
+
+
+      if (parsedMessage.method === "SUBSCRIBE") {
+        parsedMessage.params.forEach(s => SubscriptionManager.getInstance().subscribe(this.id, s))
       }
 
-      if (parseedMessage.method === "UNSUBSCRIBE") {
-        parseedMessage.params.forEach(s => SubscriptionManager.getInstance().unsubscribe(this.id, s))
-      }
+      // if (parseedMessage.method === "UNSUBSCRIBE") {
+      //   parseedMessage.params.forEach(s => SubscriptionManager.getInstance().unsubscribe(this.id, s))
+      // }
 
     })
   }

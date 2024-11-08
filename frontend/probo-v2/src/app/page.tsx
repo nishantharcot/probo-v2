@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { deserializeOrderBook } from "./utils";
-import { OrderBook } from "./utils";
-import { TableDemo } from "./components/EventDetails";
+import { deserializeOrderBook } from "./utils/helperFunctions";
+import { OrderBook } from "./utils/helperFunctions";
+import { EventDetails } from "./components/EventDetails";
+import { EventCard } from "./components/EventCard";
 
 export default function Home() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -46,7 +47,8 @@ export default function Home() {
 
   return (
     <div>
-      <TableDemo />
+      <EventCard event="BTC" />
+      <EventDetails event="BTC" eventOrderbook={null} />
     </div>
   );
 }

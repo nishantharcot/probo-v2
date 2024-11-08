@@ -12,6 +12,15 @@ import { ORDER_QUEUES } from "./data";
 
 const redisClient = createClient();
 
+async function publishEvents({stockSymbol}: {stockSymbol: string}) {
+  // console.log('publish from engine, yo am I called?')
+  console.log('orderbook check:-', ORDERBOOK)
+  RedisManager.getInstance().publishMessage(stockSymbol, {
+    event: stockSymbol,
+    eventOrderbook: ORDERBOOK.get(stockSymbol)!
+  });
+}
+
 async function processSubmission({
   request,
   clientID,
@@ -384,6 +393,13 @@ async function processSubmission({
               message: "Buy order placed and trade executed",
             },
           });
+        } else if (quantity == origQuantity) {
+          RedisManager.getInstance().sendToApi(clientID, {
+            type: "BUY",
+            payload: {
+              message: "Buy order placed and pending",
+            },
+          });
         } else {
           RedisManager.getInstance().sendToApi(clientID, {
             type: "BUY",
@@ -392,6 +408,7 @@ async function processSubmission({
             },
           });
         }
+        publishEvents({stockSymbol: stockSymbol})
       } catch (e) {
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_USER_BALANCE",
@@ -400,7 +417,6 @@ async function processSubmission({
           },
         });
       }
-      
       break;
     case "SELL":
       try {
@@ -540,38 +556,47 @@ async function processSubmission({
           const priceKey = (price / 100).toString();
 
           if (
-            ORDERBOOK.has(stockSymbol) &&
-            ORDERBOOK.get(stockSymbol)![stockType]
+            ORDERBOOK.has(stockSymbol)
           ) {
-            if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey]) {
-              ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total +=
-                quantity;
-              if (
-                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.has(
-                  userId
-                )
-              ) {
-                const current =
-                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(
+            if (ORDERBOOK.get(stockSymbol)![stockType]) {
+              if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey]) {
+                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total +=
+                  quantity;
+                if (
+                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.has(
                     userId
-                  )!;
-                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
-                  userId,
-                  quantity + current
-                );
+                  )
+                ) {
+                  const current =
+                    ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(
+                      userId
+                    )!;
+                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
+                    userId,
+                    quantity + current
+                  );
+                } else {
+                  ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
+                    userId,
+                    quantity
+                  );
+                }
               } else {
-                ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
-                  userId,
-                  quantity
-                );
+                const prev = ORDERBOOK.get(stockSymbol)![stockType]!
+                prev[priceKey] = {
+                    total: quantity,
+                    orders: new Map([[userId, quantity]]),
+                };
               }
             } else {
-              ORDERBOOK.get(stockSymbol)![stockType] = {
-                priceKey: {
+              const prev = ORDERBOOK.get(stockSymbol)!
+              console.log('yo man')
+              prev[stockType] = {
+                [priceKey]: {
                   total: quantity,
                   orders: new Map([[userId, quantity]]),
                 },
-              };
+              }
             }
           } else {
             ORDERBOOK.set(stockSymbol, {
@@ -624,6 +649,7 @@ async function processSubmission({
             },
           });
         }
+        publishEvents({stockSymbol: stockSymbol})
       } catch (e) {
         console.log("error check:- ", e);
         RedisManager.getInstance().sendToApi(clientID, {
@@ -703,11 +729,11 @@ async function processSubmission({
       break;
   }
 
-  console.log("ORDER_QUEUES.SELL_ORDER_QUEUE:- ", ORDER_QUEUES.SELL_ORDER_QUEUE);
-  console.log("ORDER_QUEUES.BUY_ORDER_QUEUE:- ", ORDER_QUEUES.BUY_ORDER_QUEUE);
+  // console.log("ORDER_QUEUES.SELL_ORDER_QUEUE:- ", ORDER_QUEUES.SELL_ORDER_QUEUE);
+  // console.log("ORDER_QUEUES.BUY_ORDER_QUEUE:- ", ORDER_QUEUES.BUY_ORDER_QUEUE);
 
-  console.log("INR_BALANCES:- ", INR_BALANCES);
-  console.log("STOCK_BALANCES:- ", STOCK_BALANCES);
+  // console.log("INR_BALANCES:- ", INR_BALANCES);
+  // console.log("STOCK_BALANCES:- ", STOCK_BALANCES);
   console.log("ORDERBOOK:- ", ORDERBOOK);
 
   // Processing logic
@@ -715,8 +741,8 @@ async function processSubmission({
   // Send to DB to process the request
 
   // Send it back to queue for websocket server to pick it up
-  redisClient.lPush("ws_server", serializeOrderBook(ORDERBOOK));
-  redisClient.lPush("db_server", serializeOrderBook(ORDERBOOK));
+  // redisClient.lPush("ws_server", serializeOrderBook(ORDERBOOK));
+  // redisClient.lPush("db_server", serializeOrderBook(ORDERBOOK));
 }
 
 async function main() {

@@ -15,16 +15,21 @@ export class UserManager {
   }
 
   public addUser(ws: WebSocket) {
+    // console.log("yo mann!")
     const id = this.getRandomId();
     const user = new User(id, ws);
+    // console.log('user check:-', user)
+    // console.log('yo nigga all cool')
     this.users.set(id, user);
     this.registerOnClose(ws, id);
     return user;
   }
 
   private registerOnClose(ws: WebSocket, id: string) {
+    console.log('register on close yo!!')
     ws.on('close', () => {
       this.users.delete(id)
+      console.log('did it reach here???')
       SubscriptionManager.getInstance().userLeft(id)
     })
   }
