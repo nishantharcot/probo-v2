@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { deserializeOrderBook } from "./utils/helperFunctions";
 import { OrderBook } from "./utils/helperFunctions";
-import { EventDetails } from "./components/EventDetails";
-import { EventCard } from "./components/EventCard";
+import { EventDetails } from "@/components/ui/events/EventDetails";
+import { EventCard } from "@/components/ui/events/EventCard";
 
 export default function Home() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -48,7 +48,7 @@ export default function Home() {
   return (
     <div>
       <EventCard event="BTC" />
-      <EventDetails event="BTC" eventOrderbook={null} />
+      <EventDetails event="BTC" />
     </div>
   );
 }

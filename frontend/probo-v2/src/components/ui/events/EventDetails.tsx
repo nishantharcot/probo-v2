@@ -8,9 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { OrderBookForEvent } from "../types";
+import { OrderType } from "@/app/types";
 import { useEffect, useState } from "react";
-import { SignalingManager } from "../utils/SignalingManager";
+import { SignalingManager } from "@/app/utils/SignalingManager";
 
 const stockPrices = [
   {
@@ -43,14 +43,14 @@ const stockPrices = [
   },
 ];
 
-export function EventDetails({ event, eventOrderbook }: OrderBookForEvent) {
+export function EventDetails({ event }: { event: string }) {
   const [yesData, setYesData] = useState<null | any[]>(null);
   const [noData, setNoData] = useState<null | any[]>(null);
 
   useEffect(() => {
     SignalingManager.getInstance().registerCallback(
       event,
-      (data: OrderBookForEvent) => {
+      (data: OrderType) => {
         console.log("data check:-", data);
         const orderbook = data;
         const yesArray = [];
@@ -102,7 +102,7 @@ export function EventDetails({ event, eventOrderbook }: OrderBookForEvent) {
   }, [event]);
 
   return (
-    <div className="p-6 flex">
+    <div className="p-6 flex gap-x-4">
       <div>
         <Table className="w-auto">
           {/* <TableCaption>A list of your recent invoices.</TableCaption> */}

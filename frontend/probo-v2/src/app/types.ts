@@ -7,7 +7,7 @@ type OrderPrice = {
     [price: string]: OrderDetails
 }
 
-type OrderType = {
+export type OrderType = {
     yes?: OrderPrice
     no?: OrderPrice
 }
