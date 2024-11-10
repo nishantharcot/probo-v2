@@ -38,9 +38,9 @@ export class User {
         parsedMessage.params.forEach(s => SubscriptionManager.getInstance().subscribe(this.id, s))
       }
 
-      // if (parseedMessage.method === "UNSUBSCRIBE") {
-      //   parseedMessage.params.forEach(s => SubscriptionManager.getInstance().unsubscribe(this.id, s))
-      // }
+      if (parsedMessage.method === "UNSUBSCRIBE") {
+        parsedMessage.params.forEach(s => SubscriptionManager.getInstance().unsubscribe(this.id, s))
+      }
 
     })
   }

@@ -4,9 +4,11 @@ import userRouter from "./routes/userRoutes"
 import symbolRouter from "./routes/symbolRoutes"
 import getRouter from "./routes/getRoutes"
 import stockRouter from "./routes/stockRoutes"
+import cors from "cors"
 
 const app = express()
 const redisClient = createClient()
+app.use(cors({ origin: 'http://localhost:3001' }))
 app.use(express.json())
 
 // Routes

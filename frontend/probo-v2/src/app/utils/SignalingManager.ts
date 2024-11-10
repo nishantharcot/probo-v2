@@ -33,14 +33,18 @@ export class SignalingManager {
         }
 
         this.ws.onmessage = (event) => {
+            console.log('event check:- ', event)
+            console.log('callbacks check:- ', this.callbacks)
             const message = JSON.parse(event.data)
 
             if (this.callbacks[message.event]) {
                 this.callbacks[message.event].forEach(({callback}) => {
+                    console.log('message check:- ', message)
                     const newOrderbook = message.eventOrderbook
                     callback(newOrderbook)
                 })
             }
+
         }
     }
 

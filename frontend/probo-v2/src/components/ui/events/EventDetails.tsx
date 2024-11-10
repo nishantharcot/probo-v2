@@ -48,6 +48,7 @@ export function EventDetails({ event }: { event: string }) {
   const [noData, setNoData] = useState<null | any[]>(null);
 
   useEffect(() => {
+    console.log("yo working!!");
     SignalingManager.getInstance().registerCallback(
       event,
       (data: OrderType) => {

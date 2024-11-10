@@ -5,6 +5,7 @@ import { deserializeOrderBook } from "./utils/helperFunctions";
 import { OrderBook } from "./utils/helperFunctions";
 import { EventDetails } from "@/components/ui/events/EventDetails";
 import { EventCard } from "@/components/ui/events/EventCard";
+import LandingScreen from "@/components/ui/LandingScreen";
 
 export default function Home() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -47,8 +48,7 @@ export default function Home() {
 
   return (
     <div>
-      <EventCard event="BTC" />
-      <EventDetails event="BTC" />
+      <LandingScreen />
     </div>
   );
 }
