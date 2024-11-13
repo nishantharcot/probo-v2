@@ -11,6 +11,9 @@ import {
 import { OrderType } from "@/app/types";
 import { useEffect, useState } from "react";
 import { SignalingManager } from "@/app/utils/SignalingManager";
+import { deserializeOrderBookForEvent } from "@/app/utils/helperFunctions";
+
+const API_URL = "http://localhost:3000";
 
 const stockPrices = [
   {
@@ -44,11 +47,58 @@ const stockPrices = [
 ];
 
 export function EventDetails({ event }: { event: string }) {
-  const [yesData, setYesData] = useState<null | any[]>(null);
-  const [noData, setNoData] = useState<null | any[]>(null);
+  const [yesData, setYesData] = useState<null | any[]>([]);
+  const [noData, setNoData] = useState<null | any[]>([]);
 
   useEffect(() => {
     console.log("yo working!!");
+
+    fetch(API_URL + `/orderbook/${event}`)
+      .then((res) => {
+        console.log("res check:- ", res);
+        return res.json();
+      })
+      .then((finalRes) => {
+        console.log(finalRes);
+        // const orderbook = deserializeOrderBookForEvent(finalRes[0]);
+        const orderbook = finalRes[0];
+
+        console.log("orderbook check:- ", orderbook);
+
+        const yesArray = [];
+        const noArray = [];
+
+        console.log(orderbook);
+
+        for (const stockType of ["yes", "no"] as const) {
+          if (!orderbook[stockType]) {
+            continue;
+          }
+          const orderPrice = orderbook[stockType];
+          let id = 1;
+
+          if (orderPrice) {
+            for (const price in orderPrice) {
+              const orderDetails = orderPrice[price];
+              const total = orderDetails.total;
+
+              if (stockType == "yes") {
+                yesArray.push({ id, price, quantity: total });
+                id++;
+              } else {
+                noArray.push({ id, price, quantity: total });
+                id++;
+              }
+            }
+          }
+        }
+
+        setYesData(yesArray);
+        console.log("yesArray check:- ", yesArray);
+        setNoData(noArray);
+        console.log("noArray check:- ", noArray);
+      });
+
     SignalingManager.getInstance().registerCallback(
       event,
       (data: OrderType) => {

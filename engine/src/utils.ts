@@ -1,4 +1,4 @@
-import { OrderBook } from "./data";
+import { OrderBook, OrderType } from "./data";
 import { OrderRequest } from "./data";
 
 function entriesToObject(entries: [string, any][]): { [key: string]: any } {
@@ -23,6 +23,37 @@ export function serializeOrderBook(orderBook: OrderBook): string {
   return JSON.stringify(
     Array.from(orderBook, ([key, orderType]) => [
       key,
+      {
+        yes: orderType.yes
+          ? entriesToObject(
+              getEntries(orderType.yes).map(([price, orderDetails]) => [
+                price,
+                {
+                  total: orderDetails.total,
+                  orders: Array.from(orderDetails.orders),
+                },
+              ])
+            )
+          : undefined,
+        no: orderType.no
+          ? entriesToObject(
+              getEntries(orderType.no).map(([price, orderDetails]) => [
+                price,
+                {
+                  total: orderDetails.total,
+                  orders: Array.from(orderDetails.orders),
+                },
+              ])
+            )
+          : undefined,
+      },
+    ])
+  );
+}
+
+export function serializeOrderBookForEvent(orderType: OrderType): string {
+  return JSON.stringify(
+    Array.from([
       {
         yes: orderType.yes
           ? entriesToObject(

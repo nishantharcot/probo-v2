@@ -13,7 +13,12 @@ export type MessageFromApi = {
     }
 }  | {
     type: 'GET_ORDERBOOK',
-}   | {
+}    | {
+    type: 'GET_ORDERBOOK_FOR_EVENT',
+    data: {
+        event: string
+    }
+} | {
     type: 'GET_INR_BALANCES',
 }    | {
     type: 'GET_STOCK_BALANCES',

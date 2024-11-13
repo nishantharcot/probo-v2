@@ -10,6 +10,21 @@ export const getOrderBook = async (req: express.Request, res: express.Response) 
     res.json(JSON.parse(response.payload.message))
 }
 
+export const getOrderBookForEvent = async (req: express.Request, res: express.Response) => {
+
+    const {event} = req.params
+
+    const response  = await RedisManager.getInstance().sendAndAwait({
+        type: 'GET_ORDERBOOK_FOR_EVENT',
+        data: {
+            event
+        }
+    })
+
+    console.log('res check:- ', response.payload)
+    res.json(JSON.parse(response.payload.message))
+}
+
 export const getInrBalances = async (req: express.Request, res: express.Response) => {
     const response  = await RedisManager.getInstance().sendAndAwait({
         type: 'GET_INR_BALANCES'

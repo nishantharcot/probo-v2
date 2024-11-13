@@ -1,6 +1,3 @@
-import { REQUEST_TYPES } from "./index"
-import { STOCK_BALANCES, ORDERBOOK, INR_BALANCES } from "../data"
-
 
 export type MessageToApi = {
     type: "USER_CREATED",
@@ -22,7 +19,12 @@ export type MessageToApi = {
     payload: {
         message: string
     }
-}   | {
+} | {
+    type: "GET_ORDERBOOK_FOR_EVENT",
+    payload: {
+        message: string
+    }
+}  | {
     type: "GET_STOCK_BALANCES",
     payload: {
         message: string

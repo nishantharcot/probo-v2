@@ -6,7 +6,7 @@ import {
 } from "./data";
 import { MessageFromApi } from "./types/fromAPI";
 import { RedisManager } from "./RedisManager";
-import { serializeOrderBook } from "./utils";
+import { serializeOrderBook, serializeOrderBookForEvent } from "./utils";
 import { sortSellOrderQueueByPrice } from "./utils";
 import { ORDER_QUEUES } from "./data";
 
@@ -98,6 +98,40 @@ async function processSubmission({
         });
       }
       break;
+    case "GET_ORDERBOOK_FOR_EVENT":
+      try {
+        const {event} = request.data
+
+        const eventOrderbook = ORDERBOOK.get(event)
+
+        if (!eventOrderbook) {
+          RedisManager.getInstance().sendToApi(clientID, {
+            type: "GET_ORDERBOOK_FOR_EVENT",
+            payload: {
+              message: "Could not get orderbook for event",
+            },
+          });
+        }
+
+        console.log(serializeOrderBookForEvent(eventOrderbook!))
+
+        RedisManager.getInstance().sendToApi(clientID, {
+          type: "GET_ORDERBOOK",
+          payload: {
+            message: serializeOrderBookForEvent(eventOrderbook!),
+          },
+        });
+
+
+      } catch (e) {
+        RedisManager.getInstance().sendToApi(clientID, {
+          type: "REQUEST_FAILED",
+          payload: {
+            message: "Could not get orderbook for event",
+          },
+        });
+      }
+      break
     case "GET_STOCK_BALANCES":
       try {
         const balancesObject: any = {};
