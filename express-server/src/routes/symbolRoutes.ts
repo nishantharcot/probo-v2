@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { createSymbol } from "../controllers/symbolController";
 
-const symbolRouter = Router()
+const symbolRouter = Router();
 
-symbolRouter.post('/symbol/create/:stockSymbol', createSymbol)
+symbolRouter.post("/symbol/create/:stockSymbol", createSymbol);
 
-export default symbolRouter
+export default symbolRouter;

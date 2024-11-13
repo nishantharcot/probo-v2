@@ -15,11 +15,8 @@ export class UserManager {
   }
 
   public addUser(ws: WebSocket) {
-    // console.log("yo mann!")
     const id = this.getRandomId();
     const user = new User(id, ws);
-    // console.log('user check:-', user)
-    // console.log('yo nigga all cool')
     this.users.set(id, user);
     this.registerOnClose(ws, id);
     return user;

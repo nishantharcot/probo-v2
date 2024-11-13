@@ -82,6 +82,8 @@ export function serializeOrderBookForEvent(orderType: OrderType): string {
   );
 }
 
-export function sortSellOrderQueueByPrice(queue: OrderRequest[]): OrderRequest[] {
+export function sortSellOrderQueueByPrice(
+  queue: OrderRequest[]
+): OrderRequest[] {
   return queue.sort((a, b) => a.price - b.price);
 }

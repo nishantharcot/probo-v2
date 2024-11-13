@@ -3,7 +3,7 @@ import { buyStock, sellStock } from "../controllers/stockController";
 
 const stockRouter = Router();
 
-stockRouter.post('/buy', buyStock)
-stockRouter.post('/sell', sellStock)
+stockRouter.post("/buy", buyStock);
+stockRouter.post("/sell", sellStock);
 
-export default stockRouter
+export default stockRouter;

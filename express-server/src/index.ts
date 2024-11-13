@@ -17,12 +17,6 @@ app.use('', symbolRouter)
 app.use('', getRouter)
 app.use('/order', stockRouter)
 
-
-// app.post('/connectionTest', async (req, res) => {
-//     redisClient.lPush("requests", "Hi. I'm pushing on the queue. Can you reveive this?")
-//     res.status(200).send("connection established!")
-// })
-
 async function startServer() {
     try {
         await redisClient.connect()

@@ -69,22 +69,25 @@ export function deserializeOrderBook(json: string): OrderBook {
 }
 
 export function deserializeOrderBookForEvent(json: any): any {
-  console.log('json check:- ', json)
+  console.log("json check:- ", json);
   const parsedArray = json;
   console.log(parsedArray);
-  return new Map(
-     [
-      ['yes', 
-        entriesToObject(
-          getEntries(parsedArray.yes).map(([price, orderDetails]) => [
-            price,
-            {
-              total: orderDetails.total,
-              orders: new Map(orderDetails.orders),
-            },
-          ])
-        )
-      ], ['no', entriesToObject(
+  return new Map([
+    [
+      "yes",
+      entriesToObject(
+        getEntries(parsedArray.yes).map(([price, orderDetails]) => [
+          price,
+          {
+            total: orderDetails.total,
+            orders: new Map(orderDetails.orders),
+          },
+        ])
+      ),
+    ],
+    [
+      "no",
+      entriesToObject(
         getEntries(parsedArray.no).map(([price, orderDetails]) => [
           price,
           {
@@ -92,11 +95,13 @@ export function deserializeOrderBookForEvent(json: any): any {
             orders: new Map(orderDetails.orders),
           },
         ])
-      )]
-    ]
-  );
+      ),
+    ],
+  ]);
 }
 
-export function sortByPrice(array: { id: number; price: string; quantity: number }[]) {
+export function sortByPrice(
+  array: { id: number; price: string; quantity: number }[]
+) {
   return array.sort((a, b) => Number(a.price) - Number(b.price));
 }

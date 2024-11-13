@@ -1,60 +1,73 @@
-import express from "express"
-import { RedisManager } from "../RedisManager"
+import express from "express";
+import { RedisManager } from "../RedisManager";
 
-export const getOrderBook = async (req: express.Request, res: express.Response) => {
-    const response  = await RedisManager.getInstance().sendAndAwait({
-        type: 'GET_ORDERBOOK'
-    })
+export const getOrderBook = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const response = await RedisManager.getInstance().sendAndAwait({
+    type: "GET_ORDERBOOK",
+  });
 
-    console.log('res check:- ', response.payload)
-    res.json(JSON.parse(response.payload.message))
-}
+  console.log("res check:- ", response.payload);
+  res.json(JSON.parse(response.payload.message));
+};
 
-export const getOrderBookForEvent = async (req: express.Request, res: express.Response) => {
+export const getOrderBookForEvent = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const { event } = req.params;
 
-    const {event} = req.params
+  const response = await RedisManager.getInstance().sendAndAwait({
+    type: "GET_ORDERBOOK_FOR_EVENT",
+    data: {
+      event,
+    },
+  });
 
-    const response  = await RedisManager.getInstance().sendAndAwait({
-        type: 'GET_ORDERBOOK_FOR_EVENT',
-        data: {
-            event
-        }
-    })
+  console.log("res check:- ", response.payload);
+  res.json(JSON.parse(response.payload.message));
+};
 
-    console.log('res check:- ', response.payload)
-    res.json(JSON.parse(response.payload.message))
-}
+export const getInrBalances = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const response = await RedisManager.getInstance().sendAndAwait({
+    type: "GET_INR_BALANCES",
+  });
 
-export const getInrBalances = async (req: express.Request, res: express.Response) => {
-    const response  = await RedisManager.getInstance().sendAndAwait({
-        type: 'GET_INR_BALANCES'
-    })
+  console.log("res check:- ", response.payload);
 
-    console.log('res check:- ', response.payload)
+  res.json(JSON.parse(response.payload.message));
+};
 
-    res.json(JSON.parse(response.payload.message))
-}
+export const getStockBalances = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const response = await RedisManager.getInstance().sendAndAwait({
+    type: "GET_STOCK_BALANCES",
+  });
 
-export const getStockBalances = async (req: express.Request, res: express.Response) => {
-    const response  = await RedisManager.getInstance().sendAndAwait({
-        type: 'GET_STOCK_BALANCES'
-    })
+  console.log("res check:- ", response.payload);
 
-    console.log('res check:- ', response.payload)
+  res.json(JSON.parse(response.payload.message));
+};
 
-    res.json(JSON.parse(response.payload.message))
-}
+export const getUserBalance = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const { userId } = req.params;
 
-export const getUserBalance = async (req: express.Request, res: express.Response) => {
-    const {userId} = req.params
+  const response = await RedisManager.getInstance().sendAndAwait({
+    type: "GET_USER_BALANCE",
+    data: {
+      userId,
+    },
+  });
 
-    const response  = await RedisManager.getInstance().sendAndAwait({
-        type: 'GET_USER_BALANCE',
-        data: {
-            userId
-        }
-    })
-
-    res.json(response.payload)
-
-}
+  res.json(response.payload);
+};

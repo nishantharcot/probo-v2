@@ -1,9 +1,5 @@
 import { createClient } from "redis";
-import {
-  ORDERBOOK,
-  INR_BALANCES,
-  STOCK_BALANCES,
-} from "./data";
+import { ORDERBOOK, INR_BALANCES, STOCK_BALANCES } from "./data";
 import { MessageFromApi } from "./types/fromAPI";
 import { RedisManager } from "./RedisManager";
 import { serializeOrderBook, serializeOrderBookForEvent } from "./utils";
@@ -12,12 +8,10 @@ import { ORDER_QUEUES } from "./data";
 
 const redisClient = createClient();
 
-async function publishEvents({stockSymbol}: {stockSymbol: string}) {
-  // console.log('publish from engine, yo am I called?')
-  console.log('orderbook check:-', ORDERBOOK)
+async function publishEvents({ stockSymbol }: { stockSymbol: string }) {
   RedisManager.getInstance().publishMessage(stockSymbol, {
     event: stockSymbol,
-    eventOrderbook: ORDERBOOK.get(stockSymbol)!
+    eventOrderbook: ORDERBOOK.get(stockSymbol)!,
   });
 }
 
@@ -28,12 +22,6 @@ async function processSubmission({
   request: MessageFromApi;
   clientID: string;
 }) {
-  console.log(
-    "Hi express server, I received your request. I'm processing it currently!"
-  );
-
-  console.log("request check:- ", request);
-
   switch (request.type) {
     case "CREATE_USER":
       try {
@@ -100,9 +88,9 @@ async function processSubmission({
       break;
     case "GET_ORDERBOOK_FOR_EVENT":
       try {
-        const {event} = request.data
+        const { event } = request.data;
 
-        const eventOrderbook = ORDERBOOK.get(event)
+        const eventOrderbook = ORDERBOOK.get(event);
 
         if (!eventOrderbook) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -113,16 +101,12 @@ async function processSubmission({
           });
         }
 
-        console.log(serializeOrderBookForEvent(eventOrderbook!))
-
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_ORDERBOOK",
           payload: {
             message: serializeOrderBookForEvent(eventOrderbook!),
           },
         });
-
-
       } catch (e) {
         RedisManager.getInstance().sendToApi(clientID, {
           type: "REQUEST_FAILED",
@@ -131,7 +115,7 @@ async function processSubmission({
           },
         });
       }
-      break
+      break;
     case "GET_STOCK_BALANCES":
       try {
         const balancesObject: any = {};
@@ -271,8 +255,6 @@ async function processSubmission({
       try {
         let { userId, stockSymbol, quantity, price, stockType } = request.data;
 
-        console.log("check:- ", request.data)
-
         // STEP 1:- CHECK FOR SUFFICIENT BALANCE
         const stockCost = quantity * price;
 
@@ -287,8 +269,6 @@ async function processSubmission({
           });
           break;
         }
-
-        console.log("step 1 success!!");
 
         // STEP 2:- CHECK FOR STOCK IN ORDERBOOK
         const exists = ORDERBOOK.get(stockSymbol)![stockType];
@@ -314,8 +294,6 @@ async function processSubmission({
           });
           break;
         }
-
-        console.log("step 2 success!!");
 
         // STEP 3:- ITERATE ORDER_QUEUES.SELL_ORDER_QUEUE AND FULFILL THE ORDERS
         const indexesToBeDeleted = new Map();
@@ -349,15 +327,10 @@ async function processSubmission({
           // SELLER details update
           INR_BALANCES.get(sellerUserId)!.locked -= toBeExecuted * sellerPrice;
           INR_BALANCES.get(sellerUserId)!.balance += toBeExecuted * sellerPrice;
-          console.log('prev value:- ', STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
-            stockType
-          ].locked)
+
           STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
             stockType
           ].locked! -= toBeExecuted;
-          console.log('after value:- ', STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
-            stockType
-          ].locked)
 
           const priceKey = (sellerPrice / 100).toString();
           ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total -=
@@ -417,16 +390,17 @@ async function processSubmission({
           }
         }
 
-        console.log("step 3 success!!");
         // Delete elements in queue
 
-        ORDER_QUEUES.SELL_ORDER_QUEUE = ORDER_QUEUES.SELL_ORDER_QUEUE.filter((item, index) => {
-          if (indexesToBeDeleted.has(index)) {
-            return false;
-          } else {
-            return true;
+        ORDER_QUEUES.SELL_ORDER_QUEUE = ORDER_QUEUES.SELL_ORDER_QUEUE.filter(
+          (item, index) => {
+            if (indexesToBeDeleted.has(index)) {
+              return false;
+            } else {
+              return true;
+            }
           }
-        });
+        );
 
         if (quantity == 0) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -450,9 +424,8 @@ async function processSubmission({
             },
           });
         }
-        publishEvents({stockSymbol: stockSymbol})
+        publishEvents({ stockSymbol: stockSymbol });
       } catch (e) {
-        console.log('check error:- ', e)
         RedisManager.getInstance().sendToApi(clientID, {
           type: "BUY",
           payload: {
@@ -467,7 +440,6 @@ async function processSubmission({
 
         const origQuantity = quantity;
 
-        console.log("started step 1");
         // STEP 1:- CHECK IF USER HAS SUFFICIENT STOCK BALANCE
         const stockExists = STOCK_BALANCES.get(userId)!.get(stockSymbol);
         if (!stockExists) {
@@ -479,8 +451,6 @@ async function processSubmission({
           });
           break;
         }
-        console.log("finished step 1");
-        console.log("passed step 1");
 
         const stockTypeExists = stockExists[stockType];
         if (!stockTypeExists) {
@@ -492,12 +462,7 @@ async function processSubmission({
           });
           break;
         }
-
-        console.log("stockTypeExists passed");
-
         const stockQuantity = stockTypeExists.quantity;
-
-        console.log("stockQuantity passed:- ", stockQuantity);
 
         if (stockQuantity < quantity) {
           RedisManager.getInstance().sendToApi(clientID, {
@@ -509,7 +474,6 @@ async function processSubmission({
           break;
         }
 
-        console.log("Started step 2");
         // STEP 2:- Iterate Buy Order Queue
         const indexesToBeDeleted = new Map();
         for (let i = 0; i < ORDER_QUEUES.BUY_ORDER_QUEUE.length; i++) {
@@ -582,25 +546,21 @@ async function processSubmission({
           }
         }
 
-        console.log("Passed step 2");
-
         // Delete items
-        ORDER_QUEUES.BUY_ORDER_QUEUE = ORDER_QUEUES.BUY_ORDER_QUEUE.filter((item, index) => {
-          if (indexesToBeDeleted.has(index)) {
-            return false;
-          } else {
-            return true;
+        ORDER_QUEUES.BUY_ORDER_QUEUE = ORDER_QUEUES.BUY_ORDER_QUEUE.filter(
+          (item, index) => {
+            if (indexesToBeDeleted.has(index)) {
+              return false;
+            } else {
+              return true;
+            }
           }
-        });
-
-        console.log("Passed step 2");
+        );
 
         if (quantity > 0) {
           const priceKey = (price / 100).toString();
 
-          if (
-            ORDERBOOK.has(stockSymbol)
-          ) {
+          if (ORDERBOOK.has(stockSymbol)) {
             if (ORDERBOOK.get(stockSymbol)![stockType]) {
               if (ORDERBOOK.get(stockSymbol)![stockType]![priceKey]) {
                 ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total +=
@@ -611,9 +571,9 @@ async function processSubmission({
                   )
                 ) {
                   const current =
-                    ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.get(
-                      userId
-                    )!;
+                    ORDERBOOK.get(stockSymbol)![stockType]![
+                      priceKey
+                    ].orders.get(userId)!;
                   ORDERBOOK.get(stockSymbol)![stockType]![priceKey].orders.set(
                     userId,
                     quantity + current
@@ -625,21 +585,20 @@ async function processSubmission({
                   );
                 }
               } else {
-                const prev = ORDERBOOK.get(stockSymbol)![stockType]!
+                const prev = ORDERBOOK.get(stockSymbol)![stockType]!;
                 prev[priceKey] = {
-                    total: quantity,
-                    orders: new Map([[userId, quantity]]),
+                  total: quantity,
+                  orders: new Map([[userId, quantity]]),
                 };
               }
             } else {
-              const prev = ORDERBOOK.get(stockSymbol)!
-              console.log('yo man')
+              const prev = ORDERBOOK.get(stockSymbol)!;
               prev[stockType] = {
                 [priceKey]: {
                   total: quantity,
                   orders: new Map([[userId, quantity]]),
                 },
-              }
+              };
             }
           } else {
             ORDERBOOK.set(stockSymbol, {
@@ -660,14 +619,16 @@ async function processSubmission({
             stockType,
           });
 
-          ORDER_QUEUES.SELL_ORDER_QUEUE = sortSellOrderQueueByPrice(ORDER_QUEUES.SELL_ORDER_QUEUE);
+          ORDER_QUEUES.SELL_ORDER_QUEUE = sortSellOrderQueueByPrice(
+            ORDER_QUEUES.SELL_ORDER_QUEUE
+          );
 
-          const userBalanceDetails = INR_BALANCES.get(userId)!
+          const userBalanceDetails = INR_BALANCES.get(userId)!;
 
           INR_BALANCES.set(userId, {
-            balance: userBalanceDetails.balance - (quantity*price),
-            locked: userBalanceDetails.locked + (quantity*price)
-          })
+            balance: userBalanceDetails.balance - quantity * price,
+            locked: userBalanceDetails.locked + quantity * price,
+          });
         }
 
         if (quantity == 0) {
@@ -692,9 +653,8 @@ async function processSubmission({
             },
           });
         }
-        publishEvents({stockSymbol: stockSymbol})
+        publishEvents({ stockSymbol: stockSymbol });
       } catch (e) {
-        console.log("error check:- ", e);
         RedisManager.getInstance().sendToApi(clientID, {
           type: "GET_USER_BALANCE",
           payload: {
@@ -772,13 +732,6 @@ async function processSubmission({
       break;
   }
 
-  console.log("ORDER_QUEUES.SELL_ORDER_QUEUE:- ", ORDER_QUEUES.SELL_ORDER_QUEUE);
-  console.log("ORDER_QUEUES.BUY_ORDER_QUEUE:- ", ORDER_QUEUES.BUY_ORDER_QUEUE);
-
-  // console.log("INR_BALANCES:- ", INR_BALANCES);
-  // console.log("STOCK_BALANCES:- ", STOCK_BALANCES);
-  console.log("ORDERBOOK:- ", ORDERBOOK);
-
   // Processing logic
 
   // Send to DB to process the request
@@ -792,12 +745,10 @@ async function main() {
   try {
     await redisClient.connect();
 
-    console.log("Redis connected, listening to requests");
+    console.log("Engine connected, listening to requests");
 
     while (true) {
       const response = await redisClient.brPop("requests", 0);
-
-      console.log("req check in engine:- ", response);
 
       await processSubmission(JSON.parse(response.element));
     }
