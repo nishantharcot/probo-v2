@@ -271,6 +271,8 @@ async function processSubmission({
       try {
         let { userId, stockSymbol, quantity, price, stockType } = request.data;
 
+        console.log("check:- ", request.data)
+
         // STEP 1:- CHECK FOR SUFFICIENT BALANCE
         const stockCost = quantity * price;
 
@@ -347,9 +349,15 @@ async function processSubmission({
           // SELLER details update
           INR_BALANCES.get(sellerUserId)!.locked -= toBeExecuted * sellerPrice;
           INR_BALANCES.get(sellerUserId)!.balance += toBeExecuted * sellerPrice;
+          console.log('prev value:- ', STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
+            stockType
+          ].locked)
           STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
             stockType
           ].locked! -= toBeExecuted;
+          console.log('after value:- ', STOCK_BALANCES.get(sellerUserId)!.get(stockSymbol)![
+            stockType
+          ].locked)
 
           const priceKey = (sellerPrice / 100).toString();
           ORDERBOOK.get(stockSymbol)![stockType]![priceKey].total -=
@@ -444,10 +452,11 @@ async function processSubmission({
         }
         publishEvents({stockSymbol: stockSymbol})
       } catch (e) {
+        console.log('check error:- ', e)
         RedisManager.getInstance().sendToApi(clientID, {
-          type: "GET_USER_BALANCE",
+          type: "BUY",
           payload: {
-            message: "Unable to fetch data",
+            message: "Request Failed",
           },
         });
       }
@@ -763,8 +772,8 @@ async function processSubmission({
       break;
   }
 
-  // console.log("ORDER_QUEUES.SELL_ORDER_QUEUE:- ", ORDER_QUEUES.SELL_ORDER_QUEUE);
-  // console.log("ORDER_QUEUES.BUY_ORDER_QUEUE:- ", ORDER_QUEUES.BUY_ORDER_QUEUE);
+  console.log("ORDER_QUEUES.SELL_ORDER_QUEUE:- ", ORDER_QUEUES.SELL_ORDER_QUEUE);
+  console.log("ORDER_QUEUES.BUY_ORDER_QUEUE:- ", ORDER_QUEUES.BUY_ORDER_QUEUE);
 
   // console.log("INR_BALANCES:- ", INR_BALANCES);
   // console.log("STOCK_BALANCES:- ", STOCK_BALANCES);
