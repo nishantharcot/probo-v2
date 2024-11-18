@@ -8,7 +8,7 @@ import cors from "cors"
 
 const app = express()
 const redisClient = createClient()
-app.use(cors({ origin: 'http://localhost:3001' }))
+app.use(cors({ origin: '*' }))
 app.use(express.json())
 
 // Routes
